@@ -1,14 +1,37 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:13-alpine
+    container_name: pgdb
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build:
       context: .
       args:
         - DEV=true
+    container_name: django
+    env_file:
+      - ./.dev.env
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend
     command: >
-      sh -c "python manage.py runserver 0.0.0.0:8000"
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+
+
