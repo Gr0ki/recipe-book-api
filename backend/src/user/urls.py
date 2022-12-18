@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import UserCreate, UserToken
+from .views import UserCreate
 
 
 app_name = "user"
