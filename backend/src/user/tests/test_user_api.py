@@ -102,3 +102,56 @@ class TestUserCreateToken(APITestCase, APIClient):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
         self.assertEqual(response.data["token"], token.key)
+
+
+class PublicUserProfileTests(APITestCase, APIClient):
+    """Tests user profile endpoint for unauthenticated user."""
+
+    def setUp(self):
+        """Set up class and create a user for the tests."""
+        self.client = APIClient()
+        self.url = reverse("user:me")
+
+    def test_retrive_profile_for_guest_fail(self):
+        """Test retriving profile for unauthenticated user."""
+        response = self.client.get(self.url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateUserProfileTests(APITestCase, APIClient):
+    """Tests user profile endpoint for authenticated user."""
+
+    def setUp(self):
+        """Set up class and create a user for the tests."""
+        self.client = APIClient()
+        self.url = reverse("user:me")
+        self.user_details = {
+            "email": "existed@test.com",
+            "password": "testPass13562",
+            "name": "Test,",
+        }
+        self.user_queryset = get_user_model().objects.create_user(**self.user_details)
+        self.client.force_authenticate(user=self.user_queryset)
+
+    def test_retrive_profile_success(self):
+        """Test retriving profile for logged in user."""
+        response = self.client.get(self.url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data,
+            {
+                "email": self.user_details["email"],
+                "name": self.user_details["name"],
+            },
+        )
+
+    def test_partial_update_user_profile(self):
+        """Test updating the user profile for the authenticated user."""
+        data = {"name": "Updated name", "password": "newpassword123"}
+
+        response = self.client.patch(self.url, data, format="json")
+        self.user_queryset.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.user_queryset.name, data["name"])
+        self.assertTrue(self.user_queryset.check_password(data["password"]))
