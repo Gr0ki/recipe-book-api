@@ -26,4 +26,5 @@ urlpatterns = [
         name="api-docs",
     ),
     path("api/users/", include("src.user.urls")),
+    path("api/recipes/", include("src.recipe.urls")),
 ]

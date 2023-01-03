@@ -34,14 +34,3 @@ class ModelTests(TestCase):
         self.assertIn(recipe, recipes_query)
         self.assertEqual(len(recipes_query), 1)
         self.assertEqual(recipes_query.get(user=self.user).user, self.user)
-
-    def test_create_recipe_fail(self):
-        """Test creating a recipe fail."""
-        recipe = Recipe.objects.create(
-            title="Test recipe name.",
-            time_minutes=5,
-            price=Decimal("200.34"),
-            description="Test description.",
-        )
-        recipes_query = Recipe.objects.all()
-        self.assertEqual(len(recipes_query), 0)

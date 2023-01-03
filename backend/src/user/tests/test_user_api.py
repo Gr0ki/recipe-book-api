@@ -9,7 +9,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework.authtoken.models import Token
 
 
-class UserCreateTest(APITestCase, APIClient):
+class UserCreateTests(APITestCase, APIClient):
     """Tests different scenarios of user creation."""
 
     def setUp(self):
