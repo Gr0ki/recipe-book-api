@@ -1,7 +1,7 @@
 """
 Database models.
 """
-from django.db.models import Model, EmailField, CharField, BooleanField
+from django.db.models import EmailField, CharField, BooleanField
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
