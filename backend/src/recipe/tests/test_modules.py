@@ -4,7 +4,7 @@ Tests for models.
 
 from django.test import TestCase
 
-from ..models import Recipe
+from ..models import Tag
 from .services import create_recipe, create_user
 
 
@@ -17,8 +17,22 @@ class RecipeModelTestCase(TestCase):
 
     def test_create_recipe_successful(self):
         """Test creating a recipe successful."""
-        recipe = create_recipe(user=self.user)
-        recipes_query = Recipe.objects.all()
-        self.assertIn(recipe, recipes_query)
-        self.assertEqual(len(recipes_query), 1)
-        self.assertEqual(recipes_query.get(user=self.user).user, self.user)
+        recipe_title = "Test title"
+        recipe = create_recipe(user=self.user, title=recipe_title)
+        self.assertEqual(recipe.user, self.user)
+        self.assertEqual(str(recipe), f"user.id={self.user.id}, title={recipe_title}")
+
+
+class TagModelTestCase(TestCase):
+    """Test Tag model."""
+
+    def setUp(self):
+        self.user = create_user()
+
+    def test_create_tag_successfuly(self):
+        """Test creating a tag successful."""
+        tag_name = "Test tag name"
+        tag = Tag.objects.create(name=tag_name, user=self.user)
+        self.assertEqual(tag_name, tag.name)
+        self.assertEqual(self.user, tag.user)
+        self.assertEqual(str(tag), f"user.id={self.user.id}, name={tag_name}")
