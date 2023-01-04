@@ -145,28 +145,40 @@ class RecipeDetailedNotAuthenticatedAPITest(APITestCase, APIClient):
         self.recipe = create_recipe(user=self.user)
 
     def test_get_auth_required(self):
-        """Test auth is required to call the get method on the recipe-detailed endpoint."""
+        """
+        Test auth is required to call the get method
+        on the recipe-detailed endpoint.
+        """
         response = self.client.get(
             create_recipe_detail_url(self.recipe.id), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_put_auth_required(self):
-        """Test auth is required to call the put method on the recipe-detailed endpoint."""
+        """
+        Test auth is required to call the put method
+        on the recipe-detailed endpoint.
+        """
         response = self.client.put(
             create_recipe_detail_url(self.recipe.id), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_patch_auth_required(self):
-        """Test auth is required to call the patch method on the recipe-detailed endpoint."""
+        """
+        Test auth is required to call the patch method
+        on the recipe-detailed endpoint.
+        """
         response = self.client.patch(
             create_recipe_detail_url(self.recipe.id), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_delete_auth_required(self):
-        """Test auth is required to call the delete method on the recipe-detailed endpoint."""
+        """
+        Test auth is required to call the delete method
+        on the recipe-detailed endpoint.
+        """
         response = self.client.delete(
             create_recipe_detail_url(self.recipe.id), format="json"
         )
@@ -287,9 +299,9 @@ class UpdateDetailedTest(APITestCase, APIClient):
         payload.update(user=self.user, time_minutes=10)
         response = self.client.put(create_recipe_detail_url(self.recipe.id), payload)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        recipe_query = Recipe.objects.get(id=self.recipe.id)
-        serializer = RecipeDetailSerializer(recipe_query)
-        self.assertEqual(response.data, serializer.data)
+        self.recipe.refresh_from_db()
+        for key, value in payload.items():
+            self.assertEqual(getattr(self.recipe, key), value)
 
     def test_put_recipe_detailed_error(self):
         """Test update(put) recipe detailed."""
@@ -304,9 +316,9 @@ class UpdateDetailedTest(APITestCase, APIClient):
         response = self.client.patch(create_recipe_detail_url(self.recipe.id), payload)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        recipe_query = Recipe.objects.get(id=self.recipe.id)
-        serializer = RecipeDetailSerializer(recipe_query)
-        self.assertEqual(response.data, serializer.data)
+        self.recipe.refresh_from_db()
+        for key, value in payload.items():
+            self.assertEqual(getattr(self.recipe, key), value)
 
 
 class DeleteDetailedTest(APITestCase, APIClient):
@@ -323,11 +335,12 @@ class DeleteDetailedTest(APITestCase, APIClient):
         """Test delete recipe detailed."""
         response = self.client.delete(create_recipe_detail_url(self.recipe.id))
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        recipe_query = Recipe.objects.count()
-        self.assertEqual(recipe_query, 0)
+        self.assertFalse(Recipe.objects.filter(id=self.recipe.id).exists())
 
     def test_delete_recipe_detailed_does_not_exist(self):
         """Test retrive recipe detailed."""
-        response = self.client.delete(create_recipe_detail_url(2222))
+        user2 = create_user(email="test2@test.com")
+        recipe = create_recipe(user=user2)
+        response = self.client.delete(create_recipe_detail_url(recipe.id))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Recipe.objects.filter(id=recipe.id).exists())
