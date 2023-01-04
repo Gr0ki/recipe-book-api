@@ -42,6 +42,10 @@ def create_recipe(user, **params):
     return recipe
 
 
+# ________
+# GET,POST /api/recipes/:
+
+
 class RecipeListTest(APITestCase, APIClient):
     """Tests GET the list of the recipes"""
 
@@ -99,13 +103,7 @@ class RecipeCreateTest(APITestCase, APIClient):
 
     def test_create_recipe_success(self):
         """Test cration a new recipe."""
-        payload = {
-            "user": self.user,
-            "title": "Test recipe name.",
-            "time_minutes": 10,
-            "price": Decimal("300.33"),
-            "description": "Test description.",
-        }
+        payload = RECIPE_DEFAULTS.copy()
         response = self.client.post(reverse("recipe:recipe-list"), payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -114,8 +112,69 @@ class RecipeCreateTest(APITestCase, APIClient):
         self.assertEqual(response.data, serializer.data)
 
 
-class PrivateRecipeDetailedAPITest(APITestCase, APIClient):
-    """Tests authorizations to call endpoint."""
+class RecipeListNotAuthenticatedAPITest(APITestCase, APIClient):
+    """Tests calling endpoint with the unauthenticated user."""
+
+    def setUp(self):
+        """Creates client for the tests."""
+        self.client = APIClient()
+
+    def test_get_auth_required(self):
+        """Test auth is required to call the get method on the recipe-list endpoint."""
+        response = self.client.get(reverse("recipe:recipe-list"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_recipe_success(self):
+        """Test cration a new recipe without authentication."""
+        payload = RECIPE_DEFAULTS.copy()
+        response = self.client.post(reverse("recipe:recipe-list"), payload)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# ________
+# GET,PUT,PATCH,DELETE /api/recipes/{id}/:
+
+
+class RecipeDetailedNotAuthenticatedAPITest(APITestCase, APIClient):
+    """Tests calling endpoint with the unauthenticated user."""
+
+    def setUp(self):
+        """Creates client and recipe for the tests."""
+        self.client = APIClient()
+        self.user = create_user()
+        self.recipe = create_recipe(user=self.user)
+
+    def test_get_auth_required(self):
+        """Test auth is required to call the get method on the recipe-detailed endpoint."""
+        response = self.client.get(
+            create_recipe_detail_url(self.recipe.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_put_auth_required(self):
+        """Test auth is required to call the put method on the recipe-detailed endpoint."""
+        response = self.client.put(
+            create_recipe_detail_url(self.recipe.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_patch_auth_required(self):
+        """Test auth is required to call the patch method on the recipe-detailed endpoint."""
+        response = self.client.patch(
+            create_recipe_detail_url(self.recipe.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_auth_required(self):
+        """Test auth is required to call the delete method on the recipe-detailed endpoint."""
+        response = self.client.delete(
+            create_recipe_detail_url(self.recipe.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class RecipeDetailedNotAuthorizedAPITest(APITestCase, APIClient):
+    """Tests authorizations for authenticated user to call endpoint."""
 
     def setUp(self):
         """Creates client for the tests."""
@@ -125,83 +184,66 @@ class PrivateRecipeDetailedAPITest(APITestCase, APIClient):
         self.recipe1 = create_recipe(user=self.user1)
         self.recipe2 = create_recipe(user=self.user2)
 
-    # ________________________________
-    # Not authenticated:
-    def test_get_auth_required(self):
-        """Test auth is required to call the get method on the recipe-detailed endpoint."""
-        response = self.client.get(create_recipe_detail_url(1), format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_put_auth_required(self):
-        """Test auth is required to call the put method on the recipe-detailed endpoint."""
-        response = self.client.put(create_recipe_detail_url(1), format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_patch_auth_required(self):
-        """Test auth is required to call the patch method on the recipe-detailed endpoint."""
-        response = self.client.patch(create_recipe_detail_url(1), format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_delete_auth_required(self):
-        """Test auth is required to call the delete method on the recipe-detailed endpoint."""
-        response = self.client.delete(create_recipe_detail_url(1), format="json")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    # ________________________________
-    # Authenticated but not authorized:
-
     def test_get_have_no_permissions(self):
         """Test restricted access for an unauthorized user
         to call the get method on the recipe-detailed endpoint."""
-        self.client.login(**USER_DEFAULTS)
-        response = self.client.get(create_recipe_detail_url(2), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user1)
+        response = self.client.get(
+            create_recipe_detail_url(self.recipe2.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        self.client.login(email="test2@example.com", password=USER_DEFAULTS["password"])
-        response = self.client.get(create_recipe_detail_url(1), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user2)
+        response = self.client.get(
+            create_recipe_detail_url(self.recipe1.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_put_have_no_permissions(self):
 
         """Test restricted access for an unauthorized user
         to call the put method on the recipe-detailed endpoint."""
-        self.client.login(**USER_DEFAULTS)
-        response = self.client.put(create_recipe_detail_url(2), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user1)
+        response = self.client.put(
+            create_recipe_detail_url(self.recipe2.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        self.client.login(email="test2@example.com", password=USER_DEFAULTS["password"])
-        response = self.client.put(create_recipe_detail_url(1), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user2)
+        response = self.client.put(
+            create_recipe_detail_url(self.recipe1.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_patch_have_no_permissions(self):
         """Test restricted access for an unauthorized user
         to call the patch method on the recipe-detailed endpoint."""
-        self.client.login(**USER_DEFAULTS)
-        response = self.client.patch(create_recipe_detail_url(2), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user1)
+        response = self.client.patch(
+            create_recipe_detail_url(self.recipe2.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        self.client.login(email="test2@example.com", password=USER_DEFAULTS["password"])
-        response = self.client.patch(create_recipe_detail_url(1), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user2)
+        response = self.client.patch(
+            create_recipe_detail_url(self.recipe1.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_have_no_permissions(self):
         """Test restricted access for an unauthorized user
         to call the delete method on the recipe-detailed endpoint."""
-        self.client.login(**USER_DEFAULTS)
-        response = self.client.delete(create_recipe_detail_url(2), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user1)
+        response = self.client.delete(
+            create_recipe_detail_url(self.recipe2.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        self.client.login(email="test2@example.com", password=USER_DEFAULTS["password"])
-        response = self.client.delete(create_recipe_detail_url(1), format="json")
-        self.client.logout()
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.user2)
+        response = self.client.delete(
+            create_recipe_detail_url(self.recipe1.id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class RecipeDetailedTest(APITestCase, APIClient):
@@ -287,5 +329,5 @@ class DeleteDetailedTest(APITestCase, APIClient):
 
     def test_delete_recipe_detailed_does_not_exist(self):
         """Test retrive recipe detailed."""
-        response = self.client.delete(create_recipe_detail_url(2))
+        response = self.client.delete(create_recipe_detail_url(2222))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
