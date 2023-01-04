@@ -3,43 +3,18 @@ Tests for the Recipe API.
 """
 from decimal import Decimal
 
-from django.urls import reverse
-from django.contrib.auth import get_user_model
-
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from .services import (
+    RECIPE_LIST_URL,
+    RECIPE_DEFAULTS,
+    create_recipe_detail_url,
+    create_user,
+    create_recipe,
+)
 from ..models import Recipe
 from ..serializers import RecipeSerializer, RecipeDetailSerializer
-
-
-RECIPE_LIST_URL = reverse("recipe:recipe-list")
-
-USER_DEFAULTS = {"email": "test@example.com", "password": "testpass123S"}
-RECIPE_DEFAULTS = {
-    "title": "Test recipe name.",
-    "time_minutes": 5,
-    "price": Decimal("100.90"),
-    "description": "Test description.",
-}
-
-
-def create_recipe_detail_url(recipe_id):
-    return reverse("recipe:recipe-detail", args=(recipe_id,))
-
-
-def create_user(**params):
-    defaults = USER_DEFAULTS.copy()
-    defaults.update(params)
-    user = get_user_model().objects.create_user(**defaults)
-    return user
-
-
-def create_recipe(user, **params):
-    defaults = RECIPE_DEFAULTS.copy()
-    defaults.update(params)
-    recipe = Recipe.objects.create(user=user, **defaults)
-    return recipe
 
 
 # ________
@@ -67,7 +42,7 @@ class RecipeListTest(APITestCase, APIClient):
 
     def test_list_recipes_success(self):
         """Test list recipes."""
-        response = self.client.get(reverse("recipe:recipe-list"))
+        response = self.client.get(RECIPE_LIST_URL)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         recipe_query = Recipe.objects.all().order_by("-id")
@@ -82,7 +57,7 @@ class RecipeListTest(APITestCase, APIClient):
         self.client.force_authenticate(user2)
         _ = create_recipe(user=user2)
 
-        response = self.client.get(reverse("recipe:recipe-list"))
+        response = self.client.get(RECIPE_LIST_URL)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         recipe_query = Recipe.objects.filter(user=user2).order_by("-id")
@@ -104,7 +79,7 @@ class RecipeCreateTest(APITestCase, APIClient):
     def test_create_recipe_success(self):
         """Test cration a new recipe."""
         payload = RECIPE_DEFAULTS.copy()
-        response = self.client.post(reverse("recipe:recipe-list"), payload)
+        response = self.client.post(RECIPE_LIST_URL, payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         recipe_query = Recipe.objects.get(user=self.user.id, title=payload["title"])
@@ -121,13 +96,13 @@ class RecipeListNotAuthenticatedAPITest(APITestCase, APIClient):
 
     def test_get_auth_required(self):
         """Test auth is required to call the get method on the recipe-list endpoint."""
-        response = self.client.get(reverse("recipe:recipe-list"))
+        response = self.client.get(RECIPE_LIST_URL)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_recipe_success(self):
         """Test cration a new recipe without authentication."""
         payload = RECIPE_DEFAULTS.copy()
-        response = self.client.post(reverse("recipe:recipe-list"), payload)
+        response = self.client.post(RECIPE_LIST_URL, payload)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
