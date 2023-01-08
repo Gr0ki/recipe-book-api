@@ -3,10 +3,11 @@ from django.contrib.auth import get_user_model
 
 from decimal import Decimal
 
-from ..models import Recipe
+from ..models import Recipe, Tag
 
 
 RECIPE_LIST_URL = reverse("recipe:recipe-list")
+TAG_LIST_URL = reverse("recipe:tag-list")
 
 USER_DEFAULTS = {"email": "test@example.com", "password": "testpass123S"}
 RECIPE_DEFAULTS = {
@@ -15,6 +16,13 @@ RECIPE_DEFAULTS = {
     "price": Decimal("100.90"),
     "description": "Test description.",
 }
+TAG_DEFAULTS = {
+    "name": "Test-tag",
+}
+
+
+def create_tag_detail_url(tag_id):
+    return reverse("recipe:tag-detail", args=(tag_id,))
 
 
 def create_recipe_detail_url(recipe_id):
@@ -32,4 +40,9 @@ def create_recipe(user, **params):
     defaults = RECIPE_DEFAULTS.copy()
     defaults.update(params)
     recipe = Recipe.objects.create(user=user, **defaults)
+    return recipe
+
+
+def create_tag(user, name=TAG_DEFAULTS["name"]):
+    recipe = Tag.objects.create(user=user, name=name)
     return recipe

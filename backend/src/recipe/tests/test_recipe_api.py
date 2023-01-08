@@ -13,7 +13,7 @@ from .services import (
     create_user,
     create_recipe,
 )
-from ..models import Recipe
+from ..models import Recipe, Tag
 from ..serializers import RecipeSerializer, RecipeDetailSerializer
 
 
@@ -85,6 +85,43 @@ class RecipeCreateTest(APITestCase, APIClient):
         recipe_query = Recipe.objects.get(user=self.user.id, title=payload["title"])
         serializer = RecipeDetailSerializer(recipe_query)
         self.assertEqual(response.data, serializer.data)
+
+    def test_create_recipe_with_new_tags_success(self):
+        """Test creating a recipe with new tags."""
+        payload = RECIPE_DEFAULTS.copy()
+        payload["tags"] = [{"name": "tag1"}, {"name": "tag2"}]
+        response = self.client.post(RECIPE_LIST_URL, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        recipes_query = Recipe.objects.filter(user=self.user.id)
+        self.assertEqual(recipes_query.count(), 1)
+        recipes_query = recipes_query[0]
+        self.assertEqual(recipes_query.tags.count(), 2)
+        for tag in payload["tags"]:
+            exists = recipes_query.tags.filter(
+                name=tag["name"], user=self.user
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_recipe_with_existing_tags(self):
+        """Test creating a recipe with existing tag."""
+        tag = Tag.objects.create(user=self.user, name="tag-name1")
+        payload = RECIPE_DEFAULTS.copy()
+        payload["tags"] = [{"name": "tag-name1"}, {"name": "tag-name2"}]
+        response = self.client.post(RECIPE_LIST_URL, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        recipes_query = Recipe.objects.filter(user=self.user)
+        self.assertEqual(recipes_query.count(), 1)
+        recipe = recipes_query[0]
+        self.assertEqual(recipe.tags.count(), 2)
+        self.assertIn(tag, recipe.tags.all())
+        for tag in payload["tags"]:
+            exists = recipe.tags.filter(
+                name=tag["name"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
 
 
 class RecipeListNotAuthenticatedAPITest(APITestCase, APIClient):
@@ -294,6 +331,32 @@ class UpdateDetailedTest(APITestCase, APIClient):
         self.recipe.refresh_from_db()
         for key, value in payload.items():
             self.assertEqual(getattr(self.recipe, key), value)
+
+    def test_update_recipe_assign_tag(self):
+        """Test assigning an existing tag when updating a recipe."""
+        tag1 = Tag.objects.create(user=self.user, name="tag-name")
+        self.recipe.tags.add(tag1)
+
+        tag2 = Tag.objects.create(user=self.user, name="tag-name1")
+        payload = {"tags": [{"name": tag2.name}]}
+        response = self.client.patch(
+            create_recipe_detail_url(self.recipe.id), payload, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn(tag2, self.recipe.tags.all())
+        self.assertNotIn(tag1, self.recipe.tags.all())
+
+    def test_clear_recipe_tags(self):
+        """Test clearing a recipes tags."""
+        tag = Tag.objects.create(user=self.user, name="tag-name2")
+        self.recipe.tags.add(tag)
+        payload = {"tags": []}
+        response = self.client.patch(
+            create_recipe_detail_url(self.recipe.id), payload, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.recipe.tags.count(), 0)
 
 
 class DeleteDetailedTest(APITestCase, APIClient):
